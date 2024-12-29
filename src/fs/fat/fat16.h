@@ -1,6 +1,8 @@
 #ifndef FAT16_H
 #define FAT16_H
 
-#include "file.h"
+#include "fs/file.h"
+
 struct filesystem* fat16_init();
+void fat16_read_dir(const char* str);
 #endif

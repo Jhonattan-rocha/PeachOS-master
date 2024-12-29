@@ -176,12 +176,6 @@ void kernel_main()
         panic("Failed to load shell.elf\n");
     }
 
-    struct command_argument argument;
-    strcpy(argument.argument, "Testing!");
-    argument.next = 0x00; 
-
-    process_inject_arguments(process_shell, &argument);
-
     task_run_first_ever_task();
 
     while(1) {}

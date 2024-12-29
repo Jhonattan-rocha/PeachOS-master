@@ -758,3 +758,54 @@ int fat16_seek(void *private, uint32_t offset, FILE_SEEK_MODE seek_mode)
 out:
     return res;
 }
+
+void fat16_read_dir(const char* str)
+{
+    struct path_root* parsed_path = NULL;
+
+    if(strlen(str) > 0)
+    {
+        parsed_path = pathparser_parse(str, NULL);
+    }
+    else
+    {
+        parsed_path = pathparser_parse("0:/", NULL);
+    }
+
+    if (!parsed_path) {
+        print("Error: Invalid path format.\n");
+        return;
+    }
+
+    if (!parsed_path) {
+        print("Error: Invalid path format.\n");
+        return;
+    }
+
+    struct disk* disk = disk_get(parsed_path->drive_no);
+    if (!disk || !disk->filesystem) {
+        print("Error: Disk or filesystem not found.\n");
+        pathparser_free(parsed_path);
+        return;
+    }
+
+    struct fat_item* item = fat16_get_directory_entry(disk, parsed_path->first);
+    if (!item || item->type != FAT_ITEM_TYPE_DIRECTORY) {
+        print("Error: Directory not found.\n");
+        pathparser_free(parsed_path);
+        if (item) fat16_fat_item_free(item);
+        return;
+    }
+
+    struct fat_directory* directory = item->directory;
+    for (int i = 0; i < directory->total; i++) {
+        char name[PEACHOS_MAX_PATH];
+        fat16_get_full_relative_filename(&directory->item[i], name, sizeof(name));
+        print(name);
+        print("\n");
+    }
+
+    // Cleanup
+    fat16_fat_item_free(item);
+    pathparser_free(parsed_path);
+}

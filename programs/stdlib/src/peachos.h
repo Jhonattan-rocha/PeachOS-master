@@ -17,6 +17,7 @@ struct process_arguments
 };
 
 void echo(const char* str);
+void ls(const char* str);
 void print(const char* filename);
 int peachos_getkey();
 

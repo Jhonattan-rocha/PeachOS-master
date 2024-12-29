@@ -116,10 +116,17 @@ int peachos_user_command_run(const char* command)
         return -1;
     }
 
-    if (strncmp(buf, "echo ", 5) == 0)
+    if (strncmp(buf, "echo", 4) == 0)
     {
-        char *arg = buf + 5;
+        char *arg = buf + 4;
         echo(arg);
+        return 0;
+    }
+    
+    if (strncmp(buf, "ls", 2) == 0)
+    {
+        char* arg = buf + 2;
+        ls(arg);
         return 0;
     }
 

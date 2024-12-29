@@ -140,6 +140,13 @@ struct path_root* pathparser_parse(const char* path, const char* current_directo
     first_part = pathparser_parse_path_part(NULL, &tmp_path);
     if (!first_part)
     {
+        // Permitir caminhos que consistem apenas no root, como 0:/
+        if (*tmp_path == '\0') {
+            path_root->first = NULL; // Indica que o caminho termina no root
+            res = PEACHOS_ALL_OK;
+            goto out;
+        }
+
         res = -1;
         goto out;
     }

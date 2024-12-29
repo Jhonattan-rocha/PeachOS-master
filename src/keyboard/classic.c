@@ -9,6 +9,7 @@
 #include <stddef.h>
 
 #define CLASSIC_KEYBOARD_CAPSLOCK 0x3A
+static bool is_shift_pressed = false;
 
 int classic_keyboard_init();
 
@@ -21,6 +22,21 @@ static uint8_t keyboard_scan_set_one[] = {
     'H', 'J', 'K', 'L', ';', '\'', '`', 
     0x00, '\\', 'Z', 'X', 'C', 'V', 'B',
     'N', 'M', ',', '.', '/', 0x00, '*',
+    0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, '7', '8', '9', '-', '4', '5',
+    '6', '+', '1', '2', '3', '0', '.'
+};
+
+static uint8_t keyboard_scan_set_one_with_shift[] = {
+    0x00, 0x1B, '!', '@', '#', '$', '%',
+    '^', '&', '*', '(', ')', '_', '+',
+    0x08, '\t', 'Q', 'W', 'E', 'R', 'T',
+    'Y', 'U', 'I', 'O', 'P', '{', '}',
+    0x0d, 0x00, 'A', 'S', 'D', 'F', 'G',
+    'H', 'J', 'K', 'L', ':', '"', '~', 
+    0x00, '|', 'Z', 'X', 'C', 'V', 'B',
+    'N', 'M', '<', '>', '?', 0x00, '*',
     0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, '7', '8', '9', '-', '4', '5',
@@ -48,17 +64,25 @@ int classic_keyboard_init()
 uint8_t classic_keyboard_scancode_to_char(uint8_t scancode)
 {
     size_t size_of_keyboard_set_one = sizeof(keyboard_scan_set_one) / sizeof(uint8_t);
-    if (scancode > size_of_keyboard_set_one)
+    if (scancode >= size_of_keyboard_set_one)
     {
         return 0;
     }
 
-    char c = keyboard_scan_set_one[scancode];
-    if (keyboard_get_capslock(&classic_keyboard) == KEYBOARD_CAPS_LOCK_OFF)
+    char c = is_shift_pressed
+        ? keyboard_scan_set_one_with_shift[scancode]
+        : keyboard_scan_set_one[scancode];
+
+    if (keyboard_get_capslock(&classic_keyboard) == KEYBOARD_CAPS_LOCK_ON)
     {
-        if (c >= 'A' && c <= 'Z')
+        // Caps Lock inverte o comportamento de letras (apenas)
+        if (c >= 'a' && c <= 'z') 
         {
-            c += 32;
+            c += 32; // Minúscula para maiúscula
+        }
+        else if (c >= 'A' && c <= 'Z') 
+        {
+            c -= 32; // Maiúscula para minúscula
         }
     }
     return c;
@@ -72,6 +96,12 @@ void classic_keyboard_handle_interrupt()
     scancode = insb(KEYBOARD_INPUT_PORT);
     insb(KEYBOARD_INPUT_PORT);
 
+    if ((scancode & 0x7F) == CLASSIC_KEYBOARD_LEFT_SHIFT || (scancode & 0x7F) == CLASSIC_KEYBOARD_RIGHT_SHIFT)
+    {
+        is_shift_pressed = !(scancode & CLASSIC_KEYBOARD_KEY_RELEASED);
+        return;
+    }
+
     if(scancode & CLASSIC_KEYBOARD_KEY_RELEASED)
     {
         return;
@@ -84,6 +114,16 @@ void classic_keyboard_handle_interrupt()
     }
 
     uint8_t c = classic_keyboard_scancode_to_char(scancode);
+
+    if (is_shift_pressed)
+    {
+        c = keyboard_scan_set_one_with_shift[scancode];
+    }
+    else
+    {
+        c = keyboard_scan_set_one[scancode];
+    }
+    
     if (c != 0)
     {
         keyboard_push(c);
