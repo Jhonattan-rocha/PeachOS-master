@@ -1,6 +1,6 @@
 #include "peachos.h"
 #include "status.h"
-#include "string.h"
+#include "string/string.h"
 
 struct command_argument* peachos_parse_command(const char* command, int max)
 {

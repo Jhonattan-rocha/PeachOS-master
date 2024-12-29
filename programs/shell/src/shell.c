@@ -1,8 +1,8 @@
 #include "shell.h"
-#include "stdio.h"
-#include "stdlib.h"
+#include "stdio/stdio.h"
+#include "stdlib/stdlib.h"
 #include "peachos.h"
-#include "string.h"
+#include "string/string.h"
 
 int main(int argc, char** argv)
 {

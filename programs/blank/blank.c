@@ -1,7 +1,8 @@
 #include "peachos.h"
-#include "stdlib.h"
-#include "stdio.h"
-#include "string.h"
+#include "stdlib/stdlib.h"
+#include "stdio/stdio.h"
+#include "string/string.h"
+
 int main(int argc, char** argv)
 {
     while(1)

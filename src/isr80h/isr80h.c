@@ -1,10 +1,10 @@
 #include "isr80h.h"
 #include "idt/idt.h"
-#include "misc.h"
-#include "io.h"
-#include "heap.h"
-#include "process.h"
-#include "inter_commands.h"
+#include "misc/misc.h"
+#include "io/io.h"
+#include "heap/heap.h"
+#include "process/process.h"
+#include "inter_commands/inter_commands.h"
 
 void isr80h_register_commands()
 {
