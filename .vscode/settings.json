@@ -6,7 +6,14 @@
         "heap.h": "c",
         "process.h": "c",
         "stdio.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "string.h": "c",
+        "peachos.h": "c",
+        "stdbool.h": "c",
+        "io.h": "c",
+        "shell.h": "c",
+        "stddef.h": "c",
+        "inter_commands.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

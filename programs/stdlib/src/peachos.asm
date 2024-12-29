@@ -3,6 +3,7 @@
 section .asm
 
 global print:function
+global echo:function
 global peachos_getkey:function
 global peachos_malloc:function
 global peachos_free:function
@@ -11,6 +12,17 @@ global peachos_process_load_start:function
 global peachos_process_get_arguments:function 
 global peachos_system:function
 global peachos_exit:function
+
+; void echo(const char* str)
+echo:
+    push ebp
+    mov ebp, esp
+    push dword[ebp+8]
+    mov eax, 10 ; Meu comando para teste
+    int 0x80
+    add esp, 4
+    pop ebp
+    ret
 
 ; void print(const char* filename)
 print:

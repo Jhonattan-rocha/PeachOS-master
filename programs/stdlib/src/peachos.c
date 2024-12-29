@@ -1,4 +1,5 @@
 #include "peachos.h"
+#include "status.h"
 #include "string.h"
 
 struct command_argument* peachos_parse_command(const char* command, int max)
@@ -103,4 +104,24 @@ int peachos_system_run(const char* command)
     }
 
     return peachos_system(root_command_argument);
+}
+
+int peachos_user_command_run(const char* command)
+{
+    char buf[1024];
+    strncpy(buf, command, sizeof(buf));
+    struct command_argument* root_command_argument = peachos_parse_command(buf, sizeof(buf));
+    if (!root_command_argument)
+    {
+        return -1;
+    }
+
+    if (strncmp(buf, "echo ", 5) == 0)
+    {
+        char *arg = buf + 5;
+        echo(arg);
+        return 0;
+    }
+
+    return -ECNF;
 }

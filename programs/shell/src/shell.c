@@ -13,7 +13,17 @@ int main(int argc, char** argv)
         char buf[1024];
         peachos_terminal_readline(buf, sizeof(buf), true);
         print("\n");
-        peachos_system_run(buf);
+
+        
+        int res = peachos_user_command_run(buf);
+
+        if(res < 0){
+            int system_res = peachos_system_run(buf);
+            if(system_res < 0)
+            {
+                printf("command not found: %i, system response: %i", res, system_res);
+            }
+        }
         
         print("\n");
     }
