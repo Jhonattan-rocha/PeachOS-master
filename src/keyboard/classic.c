@@ -4,6 +4,7 @@
 #include "kernel.h"
 #include "idt/idt.h"
 #include "task/task.h"
+#include "string/string.h"
 
 #include <stdint.h>
 #include <stddef.h>
@@ -72,66 +73,83 @@ uint8_t classic_keyboard_scancode_to_char(uint8_t scancode)
     char c = is_shift_pressed
         ? keyboard_scan_set_one_with_shift[scancode]
         : keyboard_scan_set_one[scancode];
+    
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+    {
+        c += 32;
+    }
 
+    // Verifica o estado do Caps Lock
     if (keyboard_get_capslock(&classic_keyboard) == KEYBOARD_CAPS_LOCK_ON)
     {
-        // Caps Lock inverte o comportamento de letras (apenas)
-        if (c >= 'a' && c <= 'z') 
+        if (c >= 'a' && c <= 'z') // Minúscula para maiúscula
         {
-            c += 32; // Minúscula para maiúscula
+            c -= 32;
         }
-        else if (c >= 'A' && c <= 'Z') 
+        else if (c >= 'A' && c <= 'Z') // Maiúscula para minúscula
         {
-            c -= 32; // Maiúscula para minúscula
+            c += 32;
         }
     }
+
+    // Aplica o Shift invertendo novamente se necessário
+    if (is_shift_pressed)
+    {
+        if (c >= 'a' && c <= 'z') // Minúscula para maiúscula
+        {
+            c -= 32;
+        }
+        else if (c >= 'A' && c <= 'Z') // Maiúscula para minúscula
+        {
+            c += 32;
+        }
+    }
+
     return c;
 }
-
 
 void classic_keyboard_handle_interrupt()
 {
     kernel_page();
-    uint8_t scancode = 0;
-    scancode = insb(KEYBOARD_INPUT_PORT);
-    insb(KEYBOARD_INPUT_PORT);
+    uint8_t scancode = insb(KEYBOARD_INPUT_PORT);
+    insb(KEYBOARD_INPUT_PORT); // Lê novamente para limpar a fila
 
-    if ((scancode & 0x7F) == CLASSIC_KEYBOARD_LEFT_SHIFT || (scancode & 0x7F) == CLASSIC_KEYBOARD_RIGHT_SHIFT)
+    // Verifica se o scancode é de Shift
+    if ((scancode & 0x7F) == CLASSIC_KEYBOARD_LEFT_SHIFT || 
+        (scancode & 0x7F) == CLASSIC_KEYBOARD_RIGHT_SHIFT)
     {
         is_shift_pressed = !(scancode & CLASSIC_KEYBOARD_KEY_RELEASED);
         return;
     }
-
-    if(scancode & CLASSIC_KEYBOARD_KEY_RELEASED)
+    
+    // Ignora teclas liberadas
+    if (scancode & CLASSIC_KEYBOARD_KEY_RELEASED)
     {
         return;
     }
 
+    // Verifica o Caps Lock
     if (scancode == CLASSIC_KEYBOARD_CAPSLOCK)
     {
         KEYBOARD_CAPS_LOCK_STATE old_state = keyboard_get_capslock(&classic_keyboard);
-        keyboard_set_capslock(&classic_keyboard, old_state == KEYBOARD_CAPS_LOCK_ON ? KEYBOARD_CAPS_LOCK_OFF : KEYBOARD_CAPS_LOCK_ON);
+        keyboard_set_capslock(&classic_keyboard, old_state == KEYBOARD_CAPS_LOCK_ON
+            ? KEYBOARD_CAPS_LOCK_OFF 
+            : KEYBOARD_CAPS_LOCK_ON);
+        return;
     }
 
+    // Converte o scancode para caractere
     uint8_t c = classic_keyboard_scancode_to_char(scancode);
 
-    if (is_shift_pressed)
-    {
-        c = keyboard_scan_set_one_with_shift[scancode];
-    }
-    else
-    {
-        c = keyboard_scan_set_one[scancode];
-    }
-    
+    // Adiciona o caractere ao buffer, se válido
     if (c != 0)
     {
         keyboard_push(c);
     }
 
     task_page();
-
 }
+
 
 struct keyboard* classic_init()
 {
