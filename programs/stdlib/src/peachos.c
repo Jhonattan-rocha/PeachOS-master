@@ -125,8 +125,15 @@ int peachos_user_command_run(const char* command)
     
     if (strncmp(buf, "ls", 2) == 0)
     {
-        char* arg = buf + 2;
+        char* arg = buf + 3;
         ls(arg);
+        return 0;
+    }
+
+    if (strncmp(buf, "mkdir", 5) == 0)
+    {
+        char* arg = buf + 6;
+        mkdir(arg);
         return 0;
     }
 

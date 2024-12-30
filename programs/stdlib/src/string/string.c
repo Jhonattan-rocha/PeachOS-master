@@ -1,5 +1,37 @@
 #include "string.h"
 
+char* strip(char* str) {
+    int start = 0;
+    int end = strlen(str) - 1;
+
+    // Encontra o primeiro caractere não branco a partir do início da string
+    while (str[start] == ' ' || str[start] == '\t' || str[start] == '\n' || str[start] == '\r') {
+        start++;
+    }
+
+    // Encontra o primeiro caractere não branco a partir do final da string
+    while (end >= start && (str[end] == ' ' || str[end] == '\t' || str[end] == '\n' || str[end] == '\r')) {
+        end--;
+    }
+
+    // Se a string estiver vazia ou contiver apenas espaços em branco, retorna uma string vazia
+    if (start > end) {
+        str[0] = '\0';
+        return str;
+    }
+
+    // Desloca os caracteres para o início da string
+    int i = 0;
+    for (int j = start; j <= end; j++) {
+        str[i++] = str[j];
+    }
+
+    // Adiciona o terminador nulo no final da nova string
+    str[i] = '\0';
+
+    return str;
+}
+
 char tolower(char s1)
 {
     if (s1 >= 65 && s1 <= 90)

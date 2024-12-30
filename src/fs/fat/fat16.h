@@ -5,4 +5,5 @@
 
 struct filesystem* fat16_init();
 void fat16_read_dir(const char* str);
+int fat16_mkdir(const char* path);
 #endif

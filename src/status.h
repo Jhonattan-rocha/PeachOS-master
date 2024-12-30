@@ -11,5 +11,10 @@
 #define EUNIMP 7
 #define EISTKN 8
 #define EINFORMAT 9
-
+#define ENODEV 10
+#define ENOTDIR 11
+#define EEXIST 12
+#define EFATFULL 13
+#define ENOSPC 14
+#define ESEEK 15
 #endif

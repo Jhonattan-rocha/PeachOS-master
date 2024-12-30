@@ -20,4 +20,5 @@ void isr80h_register_commands()
     isr80h_register_command(SYSTEM_COMMAND9_EXIT, isr80h_command9_exit);
     isr80h_register_command(SYSTEM_COMMAND10_ECHO, isr80h_command10_echo);
     isr80h_register_command(SYSTEM_COMMAND11_LS, isr80h_command11_ls);
+    isr80h_register_command(SYSTEM_COMMAND12_MKDIR, isr80h_command12_mkdir);
 }

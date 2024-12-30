@@ -5,6 +5,7 @@ section .asm
 global print:function
 global echo:function
 global ls:function
+global mkdir:function
 global peachos_getkey:function
 global peachos_malloc:function
 global peachos_free:function
@@ -14,7 +15,18 @@ global peachos_process_get_arguments:function
 global peachos_system:function
 global peachos_exit:function
 
-; void ls(const char* str)
+; void mkdir(const char* path)
+mkdir:
+    push ebp
+    mov ebp, esp
+    push dword[ebp+8]
+    mov eax, 12 ; Command mkdir
+    int 0x80
+    add esp, 4
+    pop ebp
+    ret
+
+; void ls(const char* path)
 ls:
     push ebp
     mov ebp, esp

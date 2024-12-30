@@ -142,7 +142,7 @@ struct path_root* pathparser_parse(const char* path, const char* current_directo
     {
         // Permitir caminhos que consistem apenas no root, como 0:/
         if (*tmp_path == '\0') {
-            path_root->first = NULL; // Indica que o caminho termina no root
+            path_root->first = kzalloc(sizeof(struct path_part)); // Cria uma parte vazia para o root
             res = PEACHOS_ALL_OK;
             goto out;
         }

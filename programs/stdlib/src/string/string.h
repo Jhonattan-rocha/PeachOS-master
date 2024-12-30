@@ -14,5 +14,6 @@ char* strncpy(char* dest, const char* src, int count);
 bool isdigit(char c);
 int tonumericdigit(char c);
 char* strtok(char* str, const char* delimiters);
+char* strip(char* str);
 
 #endif

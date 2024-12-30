@@ -7,6 +7,7 @@
 #include "fat/fat16.h"
 #include "status.h"
 #include "kernel.h"
+
 struct filesystem* filesystems[PEACHOS_MAX_FILESYSTEMS];
 struct file_descriptor* file_descriptors[PEACHOS_MAX_FILE_DESCRIPTORS];
 
