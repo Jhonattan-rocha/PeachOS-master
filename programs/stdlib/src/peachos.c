@@ -137,5 +137,11 @@ int peachos_user_command_run(const char* command)
         return 0;
     }
 
+    if (strncmp(buf, "clear", 5) == 0)
+    {
+        clear();
+        return 0;
+    }
+
     return -ECNF;
 }

@@ -36,3 +36,9 @@ void* isr80h_command12_mkdir(struct interrupt_frame* frame)
     fat16_mkdir(buf);
     return 0;
 }
+
+void* isr80h_command13_clear(struct interrupt_frame* frame)
+{
+    terminal_clear();    
+    return 0;
+}

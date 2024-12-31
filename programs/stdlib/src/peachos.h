@@ -21,6 +21,7 @@ void echo(const char* str);
 void ls(const char* path);
 void print(const char* filename);
 int peachos_getkey();
+void clear();
 
 void* peachos_malloc(size_t size);
 void peachos_free(void* ptr);

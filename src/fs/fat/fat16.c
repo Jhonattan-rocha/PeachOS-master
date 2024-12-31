@@ -776,12 +776,7 @@ void fat16_read_dir(const char* str)
         print("Error: Invalid path format.\n");
         return;
     }
-
-    if (!parsed_path) {
-        print("Error: Invalid path format.\n");
-        return;
-    }
-
+    
     struct disk* disk = disk_get(parsed_path->drive_no);
     if (!disk || !disk->filesystem) {
         print("Error: Disk or filesystem not found.\n");
@@ -1091,7 +1086,7 @@ out:
     }
     if (parent_directory) {
         fat16_fat_item_free(parent_directory);
-    }
+    }   
     return res;
 }
 
