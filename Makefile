@@ -9,9 +9,11 @@ all: ./bin/boot.bin ./bin/kernel.bin user_programs
 	dd if=/dev/zero bs=1048576 count=16 >> ./bin/os.bin
 	sudo mount -t vfat ./bin/os.bin ./mnt/d
 	# Copy a file over
-	sudo cp ./hello.txt ./mnt/d/
-	sudo cp ./programs/blank/blank.elf ./mnt/d
-	sudo cp ./programs/shell/shell.elf ./mnt/d
+	sudo mkdir ./mnt/d/FILES
+	sudo mkdir ./mnt/d/EXE
+	sudo cp ./hello.txt ./mnt/d/FILES
+	sudo cp ./programs/blank/blank.elf ./mnt/d/EXE
+	sudo cp ./programs/shell/shell.elf ./mnt/d/EXE
 	sudo umount ./mnt/d
 	
 ./bin/kernel.bin: $(FILES)

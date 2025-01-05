@@ -106,7 +106,7 @@ int peachos_system_run(const char* command)
     return peachos_system(root_command_argument);
 }
 
-int peachos_user_command_run(const char* command)
+int peachos_user_command_run(const char* command, const char* current_dir)
 {
     char buf[1024];
     strncpy(buf, command, sizeof(buf));
@@ -125,7 +125,11 @@ int peachos_user_command_run(const char* command)
     
     if (strncmp(buf, "ls", 2) == 0)
     {
-        char* arg = buf + 3;
+        char* arg = (char*) current_dir;
+        if(strlen(buf + 2) > 0)
+        {
+            arg = buf + 3;
+        }
         ls(arg);
         return 0;
     }

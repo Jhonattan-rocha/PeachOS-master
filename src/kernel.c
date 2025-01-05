@@ -182,7 +182,7 @@ void kernel_main()
     keyboard_init();
         
     struct process* process_shell = 0;
-    int res_shell = process_load_switch("0:/shell.elf", &process_shell);
+    int res_shell = process_load_switch("0:/EXE/shell.elf", &process_shell);
     if (res_shell != PEACHOS_ALL_OK)
     {
         panic("Failed to load shell.elf\n");
