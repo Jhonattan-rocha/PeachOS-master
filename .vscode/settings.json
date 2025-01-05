@@ -18,7 +18,11 @@
         "disk.h": "c",
         "file.h": "c",
         "kernel.h": "c",
-        "status.h": "c"
+        "status.h": "c",
+        "kheap.h": "c",
+        "stdint.h": "c",
+        "memory.h": "c",
+        "pparser.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

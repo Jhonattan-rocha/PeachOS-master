@@ -761,22 +761,13 @@ out:
 
 void fat16_read_dir(const char* str)
 {
-    struct path_root* parsed_path = NULL;
-
-    if(strlen(str) > 0)
-    {
-        parsed_path = pathparser_parse(str, NULL);
-    }
-    else
-    {
-        parsed_path = pathparser_parse("0:/", NULL);
-    }
+    struct path_root* parsed_path = pathparser_parse(str, NULL);
 
     if (!parsed_path) {
         print("Error: Invalid path format.\n");
         return;
     }
-    
+
     struct disk* disk = disk_get(parsed_path->drive_no);
     if (!disk || !disk->filesystem) {
         print("Error: Disk or filesystem not found.\n");
@@ -784,15 +775,23 @@ void fat16_read_dir(const char* str)
         return;
     }
 
-    struct fat_item* item = fat16_get_directory_entry(disk, parsed_path->first);
-    if (!item || item->type != FAT_ITEM_TYPE_DIRECTORY) {
-        print("Error: Directory not found.\n");
-        pathparser_free(parsed_path);
-        if (item) fat16_fat_item_free(item);
-        return;
+    struct fat_item* item = NULL;
+    struct fat_directory* directory = NULL;
+
+    if (!parsed_path->first->next) {
+        fat16_get_root_directory(disk, disk->fs_private, directory);
+    } else {
+        item = fat16_get_directory_entry(disk, parsed_path->first->next);
+
+        if (!item || item->type != FAT_ITEM_TYPE_DIRECTORY) {
+            print("Error: Directory not found.\n");
+            pathparser_free(parsed_path);
+            if (item) fat16_fat_item_free(item);
+            return;
+        }
+        directory = item->directory;
     }
 
-    struct fat_directory* directory = item->directory;
     for (int i = 0; i < directory->total; i++) {
         char name[PEACHOS_MAX_PATH];
         fat16_get_full_relative_filename(&directory->item[i], name, sizeof(name));
@@ -801,126 +800,33 @@ void fat16_read_dir(const char* str)
     }
 
     // Cleanup
-    fat16_fat_item_free(item);
+    if (item) {
+        fat16_fat_item_free(item);
+    } else {
+        fat16_free_directory(directory);
+    }
     pathparser_free(parsed_path);
 }
 
-int fat16_mkdir(const char* path)
-{
-    int res = 0;
-    struct path_root* parsed_path = NULL;
-    struct fat_item* parent_directory = NULL;
-    struct fat_directory_item new_item;
-
-    // 1. Parse the path
-    parsed_path = pathparser_parse(path, NULL);
-    if (!parsed_path) {
-        res = -EINVARG;
-        print("Error: Invalid path format.\n");
-        goto out;
-    }
-
-    // 2. Get the parent directory
-    struct disk* disk = disk_get(parsed_path->drive_no);
-    if (!disk) {
-        res = -ENODEV;
-        print("Error: Disk not found.\n");
-        goto out;
-    }
-    
-    if (!disk->filesystem)
-    {
-        res = -ENODEV;
-        print("Error: FileSystem not found.\n");
-        goto out;
-    }
-
-    // Find the parent directory. We need to traverse the path up to the last element.
-    struct path_part* current_part = parsed_path->first;
-    struct path_part* next_part = NULL;
-    parent_directory = fat16_get_directory_entry(disk, current_part);
-
-    if(!parent_directory)
-    {
-        res = -EINVARG;
-        print("Error: Invalid path format.\n");
-        goto out;
-    }
-
-    while (current_part->next && current_part->next->next != 0) 
-    {
-        next_part = current_part->next;
-        
-        if (parent_directory->type != FAT_ITEM_TYPE_DIRECTORY)
-        {
-            res = -ENOTDIR; // Not a directory
-            fat16_fat_item_free(parent_directory);
-            parent_directory = 0;
-            goto out;
-        }
-
-        // Find the item in the current directory
-        struct fat_item* temp_item = fat16_find_item_in_directory(disk, parent_directory->directory, next_part->part);
-        fat16_fat_item_free(parent_directory);
-        parent_directory = temp_item;
-        current_part = next_part;
-    }
-
-    if (!parent_directory || parent_directory->type != FAT_ITEM_TYPE_DIRECTORY)
-    {
-        res = -ENOTDIR;
-        print("Error: Parent directory not found.\n");
-        goto out;
-    }
-
-    // 3. Check if the directory already exists
-    char new_dir_name[PEACHOS_MAX_PATH];
-    memset(new_dir_name, 0, sizeof(new_dir_name));
-
-    if (!current_part->next)
-    {
-        res = -EINVARG;
-        print("Error: Parent directory not found.\n");
-        goto out;
-    }
-    strncpy(new_dir_name, current_part->next->part, sizeof(new_dir_name) -1); // -1 to ensure null termination
-
-    if (fat16_find_item_in_directory(disk, parent_directory->directory, new_dir_name)) {
-        res = -EEXIST;
-        print("Error: Directory already exists.\n");
-        goto out;
-    }
-
-    // 4. Create the new directory entry
-    memset(&new_item, 0, sizeof(new_item));
-    for (int i = 0; i < 8 && new_dir_name[i] != '\0' && new_dir_name[i] != '.'; i++) {
-        new_item.filename[i] = new_dir_name[i];
-    }
-    
-    if (new_dir_name[0] == '\0'){
-        res = -EINVARG;
-        print("Error: Directory already exists.\n");
-        goto out;
-    }
-
-    new_item.attribute = FAT_FILE_SUBDIRECTORY;
-    new_item.filesize = 0; // A new directory has a size of 0
-
-    // Find an empty entry in the parent directory
-    struct fat_directory* parent_dir = parent_directory->directory;
-    int empty_slot = -1;
-    for (int i = 0; i < parent_dir->total; i++) {
-        if (parent_dir->item[i].filename[0] == 0x00 || parent_dir->item[i].filename[0] == 0xE5) {
-            empty_slot = i;
-            break;
+static int fat16_find_free_directory_entry(struct fat_directory* directory) {
+    for (int i = 0; i < directory->total; i++) {
+        if (directory->item[i].filename[0] == 0x00 || directory->item[i].filename[0] == 0xE5) {
+            return i;
         }
     }
+    return -1;
+}
 
-    // Allocate a new cluster for the new directory.
+static int fat16_allocate_new_cluster_for_directory(struct disk* disk, struct fat_directory* directory) {
     struct fat_private* private = (struct fat_private*) disk->fs_private;
-    int cluster_to_use = 0;
-    int free_cluster = 0;
 
+    // Verificar se é o diretório raiz (não pode ser expandido)
+    if (directory->sector_pos == private->root_directory.sector_pos) {
+        return -ENOSPC; // Não há espaço no diretório raiz
+    }
+
+    // Encontrar um cluster livre
+    int free_cluster = 0;
     for (int i = 2; i < private->header.primary_header.sectors_per_fat * disk->sector_size / 2; i++) {
         int entry = fat16_get_fat_entry(disk, i);
         if (entry == 0x00) {
@@ -929,164 +835,182 @@ int fat16_mkdir(const char* path)
         }
     }
 
-    if(free_cluster == 0)
-    {
-        res = -EFATFULL;
-        goto out;
+    if (free_cluster == 0) {
+        return -EFATFULL;
     }
 
-    // Mark the new cluster as the end of the chain (0xFFFF).
-    int set_res = diskstreamer_seek(private->fat_read_stream, fat16_get_first_fat_sector(private) * disk->sector_size + free_cluster * PEACHOS_FAT16_FAT_ENTRY_SIZE);
-    
-    if (set_res < 0)
-    {
-        res = -ESEEK;
-        goto out;
-    }
-    
+    // Marcar o novo cluster como o fim da cadeia
     uint16_t end_of_file_marker = 0xFFFF;
+    int set_res = diskstreamer_seek(private->fat_read_stream, fat16_get_first_fat_sector(private) * disk->sector_size + free_cluster * PEACHOS_FAT16_FAT_ENTRY_SIZE);
+    if (set_res < 0) {
+        return -ESEEK;
+    }
     diskstreamer_write(private->fat_read_stream, &end_of_file_marker, sizeof(end_of_file_marker));
 
-    new_item.high_16_bits_first_cluster = (free_cluster >> 16) & 0xFFFF;
-    new_item.low_16_bits_first_cluster = free_cluster & 0xFFFF;
+    // Encontrar o último cluster do diretório pai
+    int last_cluster = fat16_get_first_cluster(directory->item);
+    int next_cluster = last_cluster;
+    while (next_cluster != 0x00 && next_cluster < PEACHOS_FAT16_BAD_SECTOR) {
+        last_cluster = next_cluster;
+        next_cluster = fat16_get_fat_entry(disk, last_cluster);
+    }
 
+    // Vincular o último cluster do diretório pai ao novo cluster
+    set_res = diskstreamer_seek(private->fat_read_stream, fat16_get_first_fat_sector(private) * disk->sector_size + last_cluster * PEACHOS_FAT16_FAT_ENTRY_SIZE);
+    if (set_res < 0) {
+        return -ESEEK;
+    }
+    uint16_t new_cluster_entry = free_cluster;
+    diskstreamer_write(private->fat_read_stream, &new_cluster_entry, sizeof(new_cluster_entry));
+
+    return free_cluster;
+}
+
+int fat16_mkdir(const char* path) {
+    int res = 0;
+    struct path_root* parsed_path = pathparser_parse(path, NULL);
+    struct fat_item* parent_directory_item = NULL;
+    struct fat_directory* parent_directory = NULL;
+    struct fat_directory_item new_item;
+
+    if (!parsed_path) {
+        res = -EINVARG;
+        goto out;
+    }
+
+    struct disk* disk = disk_get(parsed_path->drive_no);
+    if (!disk) {
+        res = -ENODEV;
+        goto out;
+    }
+
+    struct fat_private* private = (struct fat_private*) disk->fs_private;
+
+    if (!disk->filesystem) {
+        res = -ENODEV;
+        goto out;
+    }
+
+    // Encontrar o diretório pai
+    struct path_part* parent_path = parsed_path->first;
+    while (parent_path->next && parent_path->next->next != NULL) {
+        parent_path = parent_path->next;
+    }
+
+    if (strncmp(parent_path->part, "/", 0) == 0) {
+        // Criar diretório na raiz
+        parent_directory = &private->root_directory;
+    } else {
+        parent_directory_item = fat16_get_directory_entry(disk, parsed_path->first);
+        if (!parent_directory_item || parent_directory_item->type != FAT_ITEM_TYPE_DIRECTORY) {
+            res = -ENOTDIR;
+            goto out;
+        }
+        parent_directory = parent_directory_item->directory;
+    }
+
+    // Nome do novo diretório
+    char new_dir_name[PEACHOS_MAX_PATH];
+    memset(new_dir_name, 0, sizeof(new_dir_name));
+    strncpy(new_dir_name, parent_path->next->part, sizeof(new_dir_name) - 1);
+
+    // Verificar se o diretório já existe
+    if (fat16_find_item_in_directory(disk, parent_directory, new_dir_name)) {
+        res = -EEXIST;
+        goto out;
+    }
+
+    // Criar a nova entrada de diretório
+    memset(&new_item, 0, sizeof(new_item));
+    for (int i = 0; i < 8 && new_dir_name[i] != '\0' && new_dir_name[i] != '.'; i++) {
+        new_item.filename[i] = new_dir_name[i];
+    }
+    new_item.attribute = FAT_FILE_SUBDIRECTORY;
+    new_item.filesize = 0;
+    new_item.high_16_bits_first_cluster = 0; // Ainda não alocado
+    new_item.low_16_bits_first_cluster = 0;
+
+    // Encontrar um slot vazio no diretório pai
+    int empty_slot = fat16_find_free_directory_entry(parent_directory);
+    
     if (empty_slot == -1) {
-        // No empty slots found. We need to allocate more space for the directory.
-        // This involves allocating a new cluster for the parent directory
-        // and updating the FAT table accordingly.
-        
-        // Find a free cluster.
-        for (int i = 2; i < private->header.primary_header.sectors_per_fat * disk->sector_size / 2; i++) {
-            int entry = fat16_get_fat_entry(disk, i);
-            if (entry == 0x00) {
-                cluster_to_use = i;
-                break;
+        // Expandir o diretório pai
+        int new_cluster = fat16_allocate_new_cluster_for_directory(disk, parent_directory);
+        if (new_cluster < 0) {
+            res = new_cluster;
+            goto out;
+        }
+
+        // Atualizar o tamanho do diretório pai
+        if (parent_directory->item) {
+            parent_directory->item->filesize += private->header.primary_header.sectors_per_cluster * disk->sector_size;
+        }
+
+        // Recarregar o diretório pai se não for a raiz
+        if (parent_directory != &private->root_directory) {
+            kfree(parent_directory->item);
+            parent_directory->item = NULL;
+
+            int cluster = fat16_get_first_cluster(parent_directory->item);
+            int directory_size = parent_directory->total * sizeof(struct fat_directory_item);
+            parent_directory->item = kzalloc(directory_size);
+
+            if (!parent_directory->item) {
+                res = -ENOMEM;
+                goto out;
+            }
+
+            res = fat16_read_internal(disk, cluster, 0x00, directory_size, parent_directory->item);
+            if (res != PEACHOS_ALL_OK) {
+                goto out;
             }
         }
-        
-        if (cluster_to_use == 0)
-        {
-            // No free cluster found. Disk is full.
+
+        // Encontrar um slot vazio no diretório pai (agora deve ter)
+        empty_slot = fat16_find_free_directory_entry(parent_directory);
+        if (empty_slot == -1) {
             res = -ENOSPC;
             goto out;
         }
+    }
 
-        // Mark this cluster as used by placing the end of file marker.
-        set_res = diskstreamer_seek(private->fat_read_stream, fat16_get_first_fat_sector(private) * disk->sector_size + cluster_to_use * PEACHOS_FAT16_FAT_ENTRY_SIZE);
-        diskstreamer_write(private->fat_read_stream, &end_of_file_marker, sizeof(end_of_file_marker));
+    // Escrever a nova entrada de diretório no disco
+    struct disk_stream* stream = private->directory_stream;
+    int offset = parent_directory->sector_pos * disk->sector_size + empty_slot * sizeof(new_item);
 
-        // Get the last cluster of the parent directory.
-        int last_cluster = fat16_get_first_cluster(parent_dir->item);
-        int next_cluster = last_cluster;
-        while(next_cluster != 0x00 && next_cluster < PEACHOS_FAT16_BAD_SECTOR)
-        {
-            last_cluster = next_cluster;
-            next_cluster = fat16_get_fat_entry(disk, last_cluster);
-        }
+    if (diskstreamer_seek(stream, offset) != PEACHOS_ALL_OK) {
+        res = -EIO;
+        goto out;
+    }
 
-        // Link the last cluster of the parent directory to the new cluster.
-        set_res = diskstreamer_seek(private->fat_read_stream, fat16_get_first_fat_sector(private) * disk->sector_size + last_cluster * PEACHOS_FAT16_FAT_ENTRY_SIZE);
-        uint16_t new_cluster_entry = cluster_to_use;
-        diskstreamer_write(private->fat_read_stream, &new_cluster_entry, sizeof(new_cluster_entry));
+    if (diskstreamer_write(stream, &new_item, sizeof(new_item)) != PEACHOS_ALL_OK) {
+        res = -EIO;
+        goto out;
+    }
 
-        // Read the existing parent directory items.
-        int parent_cluster = fat16_get_first_cluster(parent_dir->item);
-        struct fat_directory_item* existing_items = kzalloc(parent_dir->total * sizeof(struct fat_directory_item));
-        fat16_read_internal(disk, parent_cluster, 0, parent_dir->total * sizeof(struct fat_directory_item), existing_items);
+    // Atualizar o número total de itens no diretório pai
+    parent_directory->total++;
 
-        // Add the new directory item.
-        existing_items[parent_dir->total] = new_item;
-
-        // Write the updated directory items to the new cluster.
-        fat16_read_internal(disk, cluster_to_use, 0, (parent_dir->total + 1) * sizeof(struct fat_directory_item), existing_items);
-
-        // Update parent directory's total items and its size in the directory entry.
-        parent_dir->total++;
-        parent_dir->item->filesize += sizeof(struct fat_directory_item);
-
-        // Write back the updated parent directory entry to its original location.
-        int parent_dir_index = -1;
-        for (int i = 0; i < parent_dir->total - 1; i++)
-        {
-            if (memcmp(&parent_dir->item[i], parent_dir->item, sizeof(struct fat_directory_item)) == 0)
-            {
-                parent_dir_index = i;
+    // Atualizar a entrada do diretório pai no disco, se necessário
+    if (parent_directory_item) {
+        int parent_entry_pos = parent_directory->sector_pos * disk->sector_size;
+        for (int i = 0; i < parent_directory->total; i++) {
+            if (memcmp(&parent_directory->item[i], parent_directory->item, sizeof(struct fat_directory_item)) == 0) {
+                parent_entry_pos += i * sizeof(struct fat_directory_item);
                 break;
             }
         }
 
-        if (parent_dir_index != -1)
-        {
-            // Calculate the position of the parent directory entry in the disk.
-            int parent_entry_pos = parent_dir->sector_pos * disk->sector_size + parent_dir_index * sizeof(struct fat_directory_item);
-
-            // Write back the updated parent directory entry to its original location on the disk.
-            struct disk_stream *stream = private->directory_stream;
-            diskstreamer_seek(stream, parent_entry_pos);
-            diskstreamer_write(stream, parent_dir->item, sizeof(struct fat_directory_item));
-        }
-        else
-        {
-            // Handle error: Parent directory entry not found.
-            res = -EIO;
-            kfree(existing_items);
-            goto out;
-        }
-
-        kfree(existing_items);
-
-    } else {
-
-        // Write the new directory entry to the empty slot
-        struct disk_stream *stream = private->directory_stream;
-        if (diskstreamer_seek(stream, parent_dir->sector_pos * disk->sector_size + empty_slot * sizeof(new_item)) != PEACHOS_ALL_OK)
-        {
-            res = -EIO;
-            goto out;
-        }
-
-        if (diskstreamer_write(stream, &new_item, sizeof(new_item)) != PEACHOS_ALL_OK)
-        {
-            res = -EIO;
-            goto out;
-        }
-
-        // Update the parent directory's item count
-        parent_dir->item[empty_slot] = new_item;
-
-        // Write back the updated parent directory entry to its original location.
-        // Find the index of the parent directory entry.
-        int parent_dir_index = -1;
-        for (int i = 0; i < parent_dir->total; i++) {
-            if (memcmp(&parent_dir->item[i], parent_dir->item, sizeof(struct fat_directory_item)) == 0) {
-                parent_dir_index = i;
-                break;
-            }
-        }
-
-        if (parent_dir_index != -1) {
-            // Calculate the position of the parent directory entry in the disk.
-            int parent_entry_pos = parent_dir->sector_pos * disk->sector_size + parent_dir_index * sizeof(struct fat_directory_item);
-
-            // Write back the updated parent directory entry to its original location on the disk.
-            diskstreamer_seek(stream, parent_entry_pos);
-            diskstreamer_write(stream, parent_dir->item, sizeof(struct fat_directory_item));
-        }
-        else
-        {
-            // Handle error: Parent directory entry not found.
-            res = -EIO;
-            goto out;
-        }
+        diskstreamer_seek(stream, parent_entry_pos);
+        diskstreamer_write(stream, parent_directory->item, sizeof(struct fat_directory_item));
     }
 
 out:
     if (parsed_path) {
         pathparser_free(parsed_path);
     }
-    if (parent_directory) {
-        fat16_fat_item_free(parent_directory);
-    }   
+    if (parent_directory_item) {
+        fat16_fat_item_free(parent_directory_item);
+    }
     return res;
 }
-

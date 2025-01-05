@@ -34,7 +34,10 @@ static struct path_root* pathparser_create_root(int drive_number)
     }
 
     path_r->drive_no = drive_number;
-    path_r->first = 0;
+    struct path_part* root = NULL;
+    root->part = "/";
+    root->next = NULL;
+    path_r->first = root;
     return path_r;
 }
 
@@ -153,9 +156,8 @@ struct path_root* pathparser_parse(const char* path, const char* current_directo
         res = -1;
         goto out;
     }
-
-    path_root->first = first_part;
-    part  = pathparser_parse_path_part(first_part, &tmp_path);
+    path_root->first->next = first_part;
+    part = pathparser_parse_path_part(first_part, &tmp_path);
     while(part)
     {
         part = pathparser_parse_path_part(part, &tmp_path);

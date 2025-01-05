@@ -1,6 +1,8 @@
 #ifndef PATHPARSER_H
 #define PATHPARSER_H
 
+#define PEACHOS_PARSER_IS_ROOT 1
+
 struct path_root
 {
     int drive_no;

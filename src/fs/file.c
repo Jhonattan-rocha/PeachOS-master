@@ -141,12 +141,12 @@ int fopen(const char* filename, const char* mode_str)
     }
 
     // We cannot have just a root path 0:/ 0:/test.txt
-    if (!root_path->first)
-    {
-        res = -EINVARG;
-        goto out;
-    }
-
+    // if (!root_path->first)
+    // {
+    //     res = -EINVARG;
+    //     goto out;
+    // }
+    
     // Ensure the disk we are reading from exists
     disk = disk_get(root_path->drive_no);
     if (!disk)
@@ -168,7 +168,14 @@ int fopen(const char* filename, const char* mode_str)
         goto out;
     }
 
-    descriptor_private_data = disk->filesystem->open(disk, root_path->first, mode);
+    struct path_part* file_to_open = root_path->first;
+
+    while (file_to_open->next)
+    {
+        file_to_open = file_to_open->next;
+    }
+    
+    descriptor_private_data = disk->filesystem->open(disk, file_to_open, mode);
     if (ISERR(descriptor_private_data))
     {
         res = ERROR_I(descriptor_private_data);
