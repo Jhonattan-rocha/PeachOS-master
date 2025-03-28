@@ -812,3 +812,35 @@ int fat16_mkdir(const char* path)
 {
     return 0;
 }
+
+void fat16_cat(const char* path) {
+    struct path_root* parsed = pathparser_parse(path, NULL);
+    if (!parsed) {
+        print("Path inválido\n");
+        return;
+    }
+
+    struct disk* disk = disk_get(parsed->drive_no);
+    if (!disk || !disk->filesystem) {
+        print("Disco ou FS não encontrados\n");
+        pathparser_free(parsed);
+        return;
+    }
+
+    struct fat_file_descriptor* desc = fat16_open(disk, parsed->first, FILE_MODE_READ);
+    if (ISERR(desc)) {
+        print("Erro ao abrir arquivo\n");
+        pathparser_free(parsed);
+        return;
+    }
+
+    char buf[512];
+    int bytes_read = fat16_read(disk, desc, 1, sizeof(buf), buf);
+    if (bytes_read > 0) {
+        buf[bytes_read] = 0;
+        print(buf);
+    }
+
+    fat16_close(desc);
+    pathparser_free(parsed);
+}

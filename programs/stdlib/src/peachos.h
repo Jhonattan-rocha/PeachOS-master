@@ -19,6 +19,7 @@ struct process_arguments
 void mkdir(const char* path);
 void echo(const char* str);
 void ls(const char* path);
+void cat(const char* path);
 void print(const char* filename);
 int peachos_getkey();
 void clear();

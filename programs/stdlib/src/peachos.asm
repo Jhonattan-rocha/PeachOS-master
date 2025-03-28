@@ -5,6 +5,7 @@ section .asm
 global print:function
 global echo:function
 global ls:function
+global cat:function
 global mkdir:function
 global clear:function
 global peachos_getkey:function
@@ -15,6 +16,17 @@ global peachos_process_load_start:function
 global peachos_process_get_arguments:function 
 global peachos_system:function
 global peachos_exit:function
+
+; void cat(const char* path)
+cat:
+    push ebp
+    mov ebp, esp
+    push dword[ebp+8]
+    mov eax, 14 ; Command cat
+    int 0x80
+    add esp, 4
+    pop ebp
+    ret
 
 ; void clear()
 clear:

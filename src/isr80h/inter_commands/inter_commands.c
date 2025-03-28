@@ -42,3 +42,12 @@ void* isr80h_command13_clear(struct interrupt_frame* frame)
     terminal_clear();    
     return 0;
 }
+
+void* isr80h_command14_cat(struct interrupt_frame* frame){
+    void* path_from_user = task_get_stack_item(task_current(), 0);
+    char buf[1024];
+    copy_string_from_task(task_current(), path_from_user, buf, sizeof(buf));
+
+    fat16_cat(buf);
+    return 0;
+}

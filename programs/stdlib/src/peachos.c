@@ -147,5 +147,12 @@ int peachos_user_command_run(const char* command, const char* current_dir)
         return 0;
     }
 
+    if (strncmp(buf, "cat", 3) == 0)
+    {
+        char *arg = buf + 4;
+        cat(arg);
+        return 0;
+    }
+
     return -ECNF;
 }
