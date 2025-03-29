@@ -1,7 +1,6 @@
 #include "streamer.h"
 #include "memory/heap/kheap.h"
 #include "config.h"
-#include "kernel.h"
 
 #include <stdbool.h>
 struct disk_stream* diskstreamer_new(int disk_id)
@@ -61,12 +60,8 @@ out:
 
 int diskstreamer_write(struct disk_stream* stream, void* in, int total)
 {
-    print("diskstreamer_write - início\n");
-
     int sector = stream->pos / PEACHOS_SECTOR_SIZE;
     int offset = stream->pos % PEACHOS_SECTOR_SIZE;
-
-    print("Calculado setor e offset\n");
 
     int total_to_write = total;
     bool overflow = (offset + total_to_write) >= PEACHOS_SECTOR_SIZE;
@@ -85,22 +80,16 @@ int diskstreamer_write(struct disk_stream* stream, void* in, int total)
         }
     }
     
-    print("Lendo setor atual do disco\n");
-
     // 2. Modify the buffer with the data to write
     for (int i = 0; i < total_to_write; i++) {
         buf[offset + i] = *(char*)in++;
     }
-
-    print("Modificando buffer\n");
 
     // 3. Write the modified sector back to disk
     res = disk_write_block(stream->disk, sector, 1, buf);
     if (res < 0) {
         goto out;
     }
-
-    print("Gravando setor de volta\n");
 
     // 4. Update the stream position
     stream->pos += total_to_write;
@@ -109,8 +98,6 @@ int diskstreamer_write(struct disk_stream* stream, void* in, int total)
     if (overflow) {
         res = diskstreamer_write(stream, in, total - total_to_write);
     }
-    print("finalizado");
-
 out:
     return res;
 }

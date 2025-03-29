@@ -3,6 +3,7 @@
 #include "config.h"
 #include "status.h"
 #include "memory/memory.h"
+#include "kernel.h"
 
 struct disk disk;
 
@@ -69,6 +70,13 @@ int disk_write_sector(int lba, int total, void *buf) {
     outb(0x1F3, (unsigned char)(lba & 0xFF));
     outb(0x1F4, (unsigned char)(lba >> 8));
     outb(0x1F5, (unsigned char)(lba >> 16));
+
+    unsigned char status = insb(0x1F7);
+    while ((status & 0x80) || !(status & 0x40))  // bit 7: Busy (BSY), bit 6: Ready (DRDY)
+    {
+        status = insb(0x1F7);
+    }
+
     outb(0x1F7, 0x30); // Comando write (0x30)
 
     unsigned short *ptr = (unsigned short *)buf;
@@ -85,13 +93,16 @@ int disk_write_sector(int lba, int total, void *buf) {
             ptr++;
         }
 
-        // Libere o cache (opcional, mas recomendado)
-        // outb(0x1F7, 0xE7);
-
         // Aguarde a conclusão da operação de gravação
+        int retry = 100000;
         c = insb(0x1F7);
-        while (!(c & 0x08) && !(c & 0x01)) {
+        while (!(c & 0x08) && !(c & 0x01) && retry--) {
             c = insb(0x1F7);
+        }
+        
+        if (retry <= 0) {
+            print("Erro: Timeout esperando o disco ficar pronto para escrita\n");
+            return -EIO;
         }
 
         // Verifique se houve erro
@@ -99,6 +110,22 @@ int disk_write_sector(int lba, int total, void *buf) {
             return -EIO;
         }
     }
+    
+    // Enviar comando FLUSH CACHE (depois de escrever tudo)
+    outb(0x1F7, 0xE7);
+
+    // Esperar flush
+    int retry = 100000;
+    status = insb(0x1F7);
+    while ((status & 0x80) && retry--) {
+        status = insb(0x1F7);
+    }
+
+    if (retry <= 0) {
+        print("Erro: Timeout no flush\n");
+        return -EIO;
+    }
+
     return 0;
 }
 
