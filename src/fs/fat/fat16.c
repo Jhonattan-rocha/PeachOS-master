@@ -395,6 +395,154 @@ static int fat16_get_fat_entry(struct disk *disk, int cluster)
 out:
     return res;
 }
+
+int fat16_set_fat_entry(struct disk* disk, int cluster, uint16_t value)
+{
+    print("iniciando processo de escrita \n");
+    struct fat_private* private = disk->fs_private;
+    struct disk_stream* stream = private->fat_read_stream;
+
+    print("buscando o primeiro setor \n");
+    int fat_start = fat16_get_first_fat_sector(private) * disk->sector_size;
+    int pos = fat_start + (cluster * PEACHOS_FAT16_FAT_ENTRY_SIZE);
+
+    print("levando o ponteiro ata ele \n");
+    int res = diskstreamer_seek(stream, pos);
+    if (res != PEACHOS_ALL_OK)
+    {
+        return -EIO;
+    }
+
+    print("Escrvendo no setor \n");
+    res = diskstreamer_write(stream, &value, sizeof(value)); // Você pode ter que criar essa função se não tiver
+    if (res != PEACHOS_ALL_OK)
+    {
+        return -EIO;
+    }
+    print("Processo realizado com sucesso \n");
+
+    return PEACHOS_ALL_OK;
+}
+
+int fat16_allocate_free_cluster(struct disk* disk)
+{
+    print("iniciando alucacao do cluster: \n");
+    int res = 0;
+    struct fat_private* private = disk->fs_private;
+    struct disk_stream* stream = private->fat_read_stream;
+    int fat_start = fat16_get_first_fat_sector(private) * disk->sector_size;
+    int total_entries = (private->header.primary_header.sectors_per_fat * disk->sector_size) / PEACHOS_FAT16_FAT_ENTRY_SIZE;
+
+    for (int i = 2; i < total_entries; i++) // Começa do cluster 2 (0 e 1 são reservados)
+    {
+        res = diskstreamer_seek(stream, fat_start + (i * PEACHOS_FAT16_FAT_ENTRY_SIZE));
+        // mover a leitura a 1 ponto desejado, sem precisar ler os dados para chegar lá
+        if (res != PEACHOS_ALL_OK)
+        {
+            return -EIO;
+        }
+        print("Poneiro movido: \n");
+
+        uint16_t value = 0;
+        res = diskstreamer_read(stream, &value, sizeof(value));
+        if (res != PEACHOS_ALL_OK)
+        {
+            return -EIO;
+        }
+        print("cluster lido \n");
+
+        if (value == 0x0000)
+        {
+            // Achou cluster livre! Agora marcar como fim de arquivo (usado)
+            print("Achei 1 cluster livre: \n");
+            res = fat16_set_fat_entry(disk, i, 0xFFFF);
+            if (res < 0)
+            {
+                return res;
+            }
+
+            return i;
+        }
+
+        print("cluster ocupado");
+    }
+
+    return -ENOMEM; // Nenhum cluster livre
+}
+
+int fat16_write_cluster(struct disk* disk, int cluster, void* data, size_t total)
+{
+    int res = 0;
+    struct fat_private* private = disk->fs_private;
+    struct disk_stream* stream = private->cluster_read_stream;
+
+    int sector = fat16_cluster_to_sector(private, cluster);
+    int pos = sector * disk->sector_size;
+
+    res = diskstreamer_seek(stream, pos);
+    if (res != PEACHOS_ALL_OK)
+    {
+        return -EIO;
+    }
+
+    res = diskstreamer_write(stream, data, total);
+    if (res != PEACHOS_ALL_OK)
+    {
+        return -EIO;
+    }
+
+    return PEACHOS_ALL_OK;
+}
+
+int fat16_add_directory_item(struct disk* disk, struct fat_directory* directory, struct fat_directory_item* item)
+{
+    struct fat_private* private = disk->fs_private;
+    struct disk_stream* stream = private->directory_stream;
+
+    int res = 0;
+    int sector_size = disk->sector_size;
+    int item_size = sizeof(struct fat_directory_item);
+    int total_items = (sector_size * (directory->ending_sector_pos - directory->sector_pos)) / item_size;
+
+    for (int i = 0; i < total_items; i++)
+    {
+        int offset = fat16_sector_to_absolute(disk, directory->sector_pos) + (i * item_size);
+        res = diskstreamer_seek(stream, offset);
+        if (res != PEACHOS_ALL_OK)
+        {
+            return -EIO;
+        }
+
+        struct fat_directory_item tmp;
+        res = diskstreamer_read(stream, &tmp, item_size);
+        if (res != PEACHOS_ALL_OK)
+        {
+            return -EIO;
+        }
+
+        if (tmp.filename[0] == 0x00 || tmp.filename[0] == 0xE5)
+        {
+            // Encontramos espaço livre, gravar aqui
+            res = diskstreamer_seek(stream, offset);
+            if (res != PEACHOS_ALL_OK)
+            {
+                return -EIO;
+            }
+
+            res = diskstreamer_write(stream, item, item_size);
+            if (res != PEACHOS_ALL_OK)
+            {
+                return -EIO;
+            }
+
+            return PEACHOS_ALL_OK;
+        }
+    }
+
+    return -ENOSPC; // Sem espaço no diretório
+}
+
+
 /**
  * Gets the correct cluster to use based on the starting cluster and the offset
  */
@@ -597,11 +745,23 @@ struct fat_item *fat16_find_item_in_directory(struct disk *disk, struct fat_dire
 
     return f_item;
 }
+
 struct fat_item *fat16_get_directory_entry(struct disk *disk, struct path_part *path)
 {
     struct fat_private *fat_private = disk->fs_private;
     struct fat_item *current_item = 0;
     struct fat_item *root_item = fat16_find_item_in_directory(disk, &fat_private->root_directory, path->part);
+    
+    // ✅ Se path for NULL, quer dizer que queremos a raiz "/"
+    if (!path || !path->part) {
+        current_item = kzalloc(sizeof(struct fat_item));
+        if (!current_item) return 0;
+
+        current_item->type = FAT_ITEM_TYPE_DIRECTORY;
+        current_item->directory = &fat_private->root_directory;
+        return current_item;
+    }
+
     if (!root_item)
     {
         goto out;
@@ -808,11 +968,6 @@ void fat16_read_dir(const char* str)
     pathparser_free(parsed_path);
 }
 
-int fat16_mkdir(const char* path)
-{
-    return 0;
-}
-
 void fat16_cat(const char* path) {
     struct path_root* parsed = pathparser_parse(path, NULL);
     if (!parsed) {
@@ -843,4 +998,96 @@ void fat16_cat(const char* path) {
 
     fat16_close(desc);
     pathparser_free(parsed);
+}
+
+void fat16_format_filename(const char* input, uint8_t* output)
+{
+    memset(output, ' ', 8); // Preenche com espaços
+
+    size_t len = strlen(input);
+    for (int i = 0; i < 8 && i < len && input[i] != '.'; i++) {
+        char c = input[i];
+
+        if (c >= 'a' && c <= 'z') {
+            c -= 32; // Converte pra maiúsculo
+        }
+
+        output[i] = c;
+    }
+}
+
+int fat16_mkdir(const char* path) {
+    int res = 0;
+    print("criando: \n");
+    print(path);
+    print("\n");
+
+    struct path_root* parsed = pathparser_parse(path, NULL);
+
+    print("caminho tratado \n");
+
+    struct disk* disk = disk_get(parsed->drive_no);
+    if (!disk || !disk->filesystem) {
+        res = -EIO;
+        goto out;
+    }
+
+    struct path_part* new_dir_name = parsed->first;
+    while (new_dir_name->next) {
+        new_dir_name = new_dir_name->next;
+    }
+
+    struct fat_item* parent_item = fat16_get_directory_entry(disk, parsed->first);
+    print("Procurando diretorio pai \n");
+    if (!parent_item || parent_item->type != FAT_ITEM_TYPE_DIRECTORY) {
+        print("nao encontrou \n");
+        res = -EIO;
+        goto out;
+    }
+    print("Encontrou dirtorio pai \n");
+
+    struct fat_directory* parent_dir = parent_item->directory;
+
+    // 1. Alocar cluster
+    int new_cluster = fat16_allocate_free_cluster(disk);
+    if (new_cluster < 0) {
+        print("Não alocou um cluster \n");
+        res = -ENOMEM;
+        goto cleanup;
+    }
+    print("Alucou um cluster \n");
+
+    // 2. Criar entrada de diretório
+    struct fat_directory_item new_entry;
+    memset(&new_entry, 0, sizeof(new_entry));
+    fat16_format_filename(new_dir_name->part, new_entry.filename);
+    new_entry.attribute = FAT_FILE_SUBDIRECTORY;
+    new_entry.low_16_bits_first_cluster = (new_cluster & 0xFFFF);
+    new_entry.high_16_bits_first_cluster = ((new_cluster >> 16) & 0xFFFF);
+
+    // 3. Escrever no diretório pai
+    res = fat16_add_directory_item(disk, parent_dir, &new_entry);
+    if (res < 0) goto cleanup;
+    print("Alocou o diretorio \n");
+
+    // 4. Inicializar diretório com "." e ".."
+    struct fat_directory_item dot_entries[2];
+    memset(dot_entries, 0, sizeof(dot_entries));
+
+    memcpy(dot_entries[0].filename, ".       ", 8);
+    dot_entries[0].attribute = FAT_FILE_SUBDIRECTORY;
+    dot_entries[0].low_16_bits_first_cluster = new_cluster;
+
+    memcpy(dot_entries[1].filename, "..      ", 8);
+    dot_entries[1].attribute = FAT_FILE_SUBDIRECTORY;
+    dot_entries[1].low_16_bits_first_cluster = fat16_get_first_cluster(parent_dir->item); // ou 0 para root
+
+    res = fat16_write_cluster(disk, new_cluster, dot_entries, sizeof(dot_entries)); // você precisa implementar
+    if (res < 0) goto cleanup;
+
+cleanup:
+    if (parent_item) fat16_fat_item_free(parent_item);
+out:
+    if (parsed) pathparser_free(parsed);
+    return res;
 }

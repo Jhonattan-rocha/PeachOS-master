@@ -86,7 +86,7 @@ int disk_write_sector(int lba, int total, void *buf) {
         }
 
         // Libere o cache (opcional, mas recomendado)
-        outb(0x1F7, 0xE7);
+        // outb(0x1F7, 0xE7);
 
         // Aguarde a conclusão da operação de gravação
         c = insb(0x1F7);
