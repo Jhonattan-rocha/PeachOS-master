@@ -3,7 +3,6 @@
 #include "config.h"
 #include "status.h"
 #include "memory/memory.h"
-#include "kernel.h"
 
 struct disk disk;
 
@@ -101,7 +100,6 @@ int disk_write_sector(int lba, int total, void *buf) {
         }
         
         if (retry <= 0) {
-            print("Erro: Timeout esperando o disco ficar pronto para escrita\n");
             return -EIO;
         }
 
@@ -122,7 +120,6 @@ int disk_write_sector(int lba, int total, void *buf) {
     }
 
     if (retry <= 0) {
-        print("Erro: Timeout no flush\n");
         return -EIO;
     }
 
