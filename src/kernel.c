@@ -181,20 +181,20 @@ void kernel_main()
     // Initialize all the system keyboards
     keyboard_init();
         
-    // struct process* process_shell = 0;
-    // int res_shell = process_load_switch("0:/EXE/shell.elf", &process_shell);
-    // if (res_shell != PEACHOS_ALL_OK)
-    // {
-    //     panic("Failed to load shell.elf\n");
-    // }
-
-    // task_run_first_ever_task();
-
-    if(disk_write_block(disk_get(0), 10, 1, "123") > 0){
-        print("funciona");
-    }else{
-        print("não funciona");
+    struct process* process_shell = 0;
+    int res_shell = process_load_switch("0:/EXE/shell.elf", &process_shell);
+    if (res_shell != PEACHOS_ALL_OK)
+    {
+        panic("Failed to load shell.elf\n");
     }
+
+    task_run_first_ever_task();
+
+    // if(disk_write_block(disk_get(0), 10, 1, "123") > 0){
+    //     print("funciona");
+    // }else{
+    //     print("não funciona");
+    // }
 
     while(1) {}
 }
