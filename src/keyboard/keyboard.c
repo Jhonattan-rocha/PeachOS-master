@@ -7,6 +7,12 @@
 
 static struct keyboard* keyboard_list_head = 0;
 static struct keyboard* keyboard_list_last = 0;
+static KEYBOARD_ECHO_FUNCTION keyboard_echo_func = 0;
+
+void keyboard_set_echo(KEYBOARD_ECHO_FUNCTION func)
+{
+    keyboard_echo_func = func;
+}
 
 void keyboard_init()
 {
@@ -77,6 +83,11 @@ void keyboard_push(char c)
     int real_index = keyboard_get_tail_index(process);
     process->keyboard.buffer[real_index] = c;
     process->keyboard.tail++;
+
+    if (keyboard_echo_func)
+    {
+        keyboard_echo_func(c); // ECO DIRETO
+    }
 }
 
 char keyboard_pop()

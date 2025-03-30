@@ -9,6 +9,7 @@ typedef int KEYBOARD_CAPS_LOCK_STATE;
 struct process;
 
 typedef int (*KEYBOARD_INIT_FUNCTION)();
+typedef void (*KEYBOARD_ECHO_FUNCTION)(char c);
 struct keyboard
 {
     KEYBOARD_INIT_FUNCTION init;
@@ -26,5 +27,6 @@ char keyboard_pop();
 int keyboard_insert(struct keyboard* keyboard);
 void keyboard_set_capslock(struct keyboard* keyboard, KEYBOARD_CAPS_LOCK_STATE state);
 KEYBOARD_CAPS_LOCK_STATE keyboard_get_capslock(struct keyboard* keyboard);
+void keyboard_set_echo(KEYBOARD_ECHO_FUNCTION func);
 
 #endif

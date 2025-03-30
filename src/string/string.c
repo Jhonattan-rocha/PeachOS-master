@@ -112,7 +112,45 @@ bool isdigit(char c)
 {
     return c >= 48 && c <= 57;
 }
+
 int tonumericdigit(char c)
 {
     return c - 48;
+}
+
+void int_to_hex(unsigned char val, char* out)
+{
+    const char* hex = "0123456789ABCDEF";
+    out[0] = '0';
+    out[1] = 'x';
+    out[2] = hex[(val >> 4) & 0xF];
+    out[3] = hex[val & 0xF];
+    out[4] = '\0';
+}
+
+void int_to_str(int num, char* str)
+{
+    int i = 0;
+    if (num == 0)
+    {
+        str[i++] = '0';
+        str[i] = '\0';
+        return;
+    }
+
+    while (num > 0)
+    {
+        str[i++] = '0' + (num % 10);
+        num /= 10;
+    }
+
+    str[i] = '\0';
+
+    // Inverter string
+    for (int j = 0; j < i / 2; j++)
+    {
+        char temp = str[j];
+        str[j] = str[i - j - 1];
+        str[i - j - 1] = temp;
+    }
 }

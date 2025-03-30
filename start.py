@@ -43,7 +43,7 @@ try:
 
             make all
             """)
-            os.system("qemu-system-x86_64 -hda ./bin/os.bin")
+            os.system("qemu-system-x86_64 -drive format=raw,file=./bin/os.bin,if=ide,index=0,cache=writeback")
             run = True
         elif i == "/run_x86":
             os.system("make clean")
