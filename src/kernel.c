@@ -18,6 +18,9 @@
 #include "gdt/gdt.h"
 #include "config.h"
 #include "status.h"
+#include "video/vga_virtual.h"
+
+vga_virtual_context_t* video = 0;
 
 uint16_t* video_mem = 0;
 uint16_t terminal_row = 0;
@@ -30,7 +33,8 @@ uint16_t terminal_make_char(char c, char colour)
 
 void terminal_putchar(int x, int y, char c, char colour)
 {
-    video_mem[(y * VGA_WIDTH) + x] = terminal_make_char(c, colour);
+    // video_mem[(y * VGA_WIDTH) + x] = terminal_make_char(c, colour);
+    vga_virtual_put_char(video, x, y, c, colour);
 }
 
 void terminal_backspace()
@@ -139,7 +143,8 @@ struct gdt_structured gdt_structured[PEACHOS_TOTAL_GDT_SEGMENTS] = {
 
 void kernel_main()
 {
-    terminal_initialize();
+    // terminal_initialize();
+    vga_virtual_init(video);
     memset(gdt_real, 0x00, sizeof(gdt_real));
     gdt_structured_to_gdt(gdt_real, gdt_structured, PEACHOS_TOTAL_GDT_SEGMENTS);
 

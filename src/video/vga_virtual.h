@@ -10,19 +10,19 @@
 #define VGA_VIRTUAL_WIDTH 120
 #define VGA_VIRTUAL_HEIGHT 100
 
-// expor a variavel para qualquer parte do sistema
-extern int cursor_x;
-extern int cursor_y;
-
 typedef struct {
-    char character;
-    char color;
-} vga_cell_t;
+    int cursor_x;
+    int cursor_y;
+    int viewport_x;
+    int viewport_y;
+    uint16_t* vga_mem;
+    uint16_t backbuffer[VGA_VIRTUAL_WIDTH * VGA_VIRTUAL_HEIGHT];
+} vga_virtual_context_t;
 
-void vga_virtual_init();
-void vga_virtual_clear();
-void vga_virtual_put_char(int x, int y, char c, char color);
-void vga_virtual_write(const char* str, char color);
-void vga_virtual_scroll(int lines);
-void vga_virtual_flush_viewport(int vx, int vy);
-void vga_virtual_set_cursor(int x, int y);
+void vga_virtual_init(vga_virtual_context_t* ctx);
+void vga_virtual_clear(vga_virtual_context_t* ctx);
+void vga_virtual_write(vga_virtual_context_t* ctx, const char* str, uint8_t color);
+void vga_virtual_put_char(vga_virtual_context_t* ctx, int x, int y, char c, uint8_t color);
+void vga_virtual_set_cursor(vga_virtual_context_t* ctx, int x, int y);
+void vga_virtual_scroll_viewport(vga_virtual_context_t* ctx, int lines);
+void vga_virtual_flush(vga_virtual_context_t* ctx);
