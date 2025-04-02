@@ -99,7 +99,7 @@ int disk_write_sector(int lba, int total, void *buf) {
             c = insb(0x1F7);
         }
         
-        if (retry <= 0) {
+        if (retry <= 0 && c & 0x01) {
             return -EIO;
         }
 

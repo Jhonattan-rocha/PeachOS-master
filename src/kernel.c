@@ -33,8 +33,8 @@ uint16_t terminal_make_char(char c, char colour)
 
 void terminal_putchar(int x, int y, char c, char colour)
 {
-    // video_mem[(y * VGA_WIDTH) + x] = terminal_make_char(c, colour);
-    vga_virtual_put_char(video, x, y, c, colour);
+    video_mem[(y * VGA_WIDTH) + x] = terminal_make_char(c, colour);
+    // vga_virtual_put_char(video, x, y, c, colour);
 }
 
 void terminal_backspace()
@@ -143,8 +143,8 @@ struct gdt_structured gdt_structured[PEACHOS_TOTAL_GDT_SEGMENTS] = {
 
 void kernel_main()
 {
-    // terminal_initialize();
-    vga_virtual_init(video);
+    terminal_initialize();
+    // vga_virtual_init(video);
     memset(gdt_real, 0x00, sizeof(gdt_real));
     gdt_structured_to_gdt(gdt_real, gdt_structured, PEACHOS_TOTAL_GDT_SEGMENTS);
 
@@ -195,8 +195,23 @@ void kernel_main()
 
     task_run_first_ever_task();
 
-    // if(disk_write_block(disk_get(0), 10, 1, "123") > 0){
-    //     print("funciona");
+    // char* data = "1234567891011";
+    // char buf[512];
+    // int res = disk_write_block(disk_get(0), 20, 1, data);
+    // if(res >= 0){
+    //     print("funciona\n");
+    //     char res_int[32];
+    //     int_to_str(res, res_int);
+    //     print(res_int);
+    // }else{
+    //     print("não funciona");
+    // }
+
+    // print("\n");
+
+    // if(disk_read_block(disk_get(0), 20, 1, buf) >= 0){
+    //     print("funciona\n");
+    //     print(buf);
     // }else{
     //     print("não funciona");
     // }
