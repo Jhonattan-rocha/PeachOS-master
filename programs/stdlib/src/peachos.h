@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-
 struct command_argument
 {
     char argument[512];
@@ -19,6 +18,7 @@ struct process_arguments
 void mkdir(const char* path);
 void echo(const char* str);
 void ls(const char* path);
+int lss(const char* path, char output[][108], int max_items);
 void cat(const char* path);
 void print(const char* filename);
 int peachos_getkey();

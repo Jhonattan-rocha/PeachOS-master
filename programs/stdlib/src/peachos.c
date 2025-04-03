@@ -130,7 +130,18 @@ int peachos_user_command_run(const char* command, const char* current_dir)
         {
             arg = buf + 3;
         }
-        ls(arg);
+        char items[64][108];
+        int total = lss(arg, items, 64);
+        
+        if (total < 0) {
+            print("Erro ao ler diretório\n");
+        } else {
+            for (int i = 0; i < total; i++) {
+                print(items[i]);
+                print("\n");
+            }
+        }
+        
         return 0;
     }
 

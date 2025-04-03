@@ -18,6 +18,7 @@ enum SystemCommands
     SYSTEM_COMMAND12_MKDIR,
     SYSTEM_COMMAND13_CLEAR,
     SYSTEM_COMMAND14_CAT,
+    SYSTEM_COMMAND15_LS_V2
 };
 
 void isr80h_register_commands();

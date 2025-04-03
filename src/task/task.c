@@ -256,3 +256,41 @@ void* task_virtual_address_to_physical(struct task* task, void* virtual_address)
 {
     return paging_get_physical_address(task->page_directory->directory_entry, virtual_address);
 }
+
+int copy_to_task(struct task* task, void* dest_virtual, void* src, int size)
+{
+    if (size >= PAGING_PAGE_SIZE)
+    {
+        return -EINVARG;
+    }
+
+    int res = 0;
+
+    // Aloca um buffer temporário que o kernel pode escrever
+    void* tmp = kzalloc(size);
+    if (!tmp)
+    {
+        return -ENOMEM;
+    }
+
+    // Copia os dados para esse buffer temporário
+    memcpy(tmp, src, size);
+
+    // Mapeia esse buffer para o espaço do processo (com permissões de user)
+    paging_map(task->page_directory, dest_virtual, tmp, PAGING_IS_WRITEABLE | PAGING_IS_PRESENT | PAGING_ACCESS_FROM_ALL);
+    
+    // Troca pro diretório do processo para que ele veja o buffer
+    paging_switch(task->page_directory);
+
+    // Só acessa para "forçar" a gravação
+    volatile char* p = (char*)dest_virtual;
+    for (int i = 0; i < size; i++) {
+        p[i] = ((char*)tmp)[i];
+    }
+
+    // Volta pro contexto do kernel
+    kernel_page();
+
+    kfree(tmp);
+    return res;
+}

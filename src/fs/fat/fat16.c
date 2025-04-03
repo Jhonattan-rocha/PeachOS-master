@@ -939,6 +939,7 @@ void fat16_read_dir(const char* str)
     struct fat_directory* directory = NULL;
 
     if (!parsed_path->first->next) {
+        directory = kzalloc(sizeof(struct fat_directory));
         fat16_get_root_directory(disk, disk->fs_private, directory);
     } else {
         item = fat16_get_directory_entry(disk, parsed_path->first->next);
@@ -966,6 +967,48 @@ void fat16_read_dir(const char* str)
         fat16_free_directory(directory);
     }
     pathparser_free(parsed_path);
+}
+
+int fat16_read_dir_return(const char* path, char output[][PEACHOS_MAX_PATH], int max_items) {
+    struct path_root* parsed_path = pathparser_parse(path, NULL);
+    if (!parsed_path) return -EINVARG;
+
+    struct disk* disk = disk_get(parsed_path->drive_no);
+    if (!disk || !disk->filesystem) {
+        pathparser_free(parsed_path);
+        return -EIO;
+    }
+
+    struct fat_item* item = NULL;
+    struct fat_directory* directory = NULL;
+
+    if (!parsed_path->first->next) {
+        directory = kzalloc(sizeof(struct fat_directory));
+        fat16_get_root_directory(disk, disk->fs_private, directory);
+    } else {
+        item = fat16_get_directory_entry(disk, parsed_path->first->next);
+        if (!item || item->type != FAT_ITEM_TYPE_DIRECTORY) {
+            pathparser_free(parsed_path);
+            if (item) fat16_fat_item_free(item);
+            return -EIO;
+        }
+        directory = item->directory;
+    }
+
+    int count = 0;
+    for (int i = 0; i < directory->total && count < max_items; i++) {
+        fat16_get_full_relative_filename(&directory->item[i], output[count], PEACHOS_MAX_PATH);
+        count++;
+    }
+
+    // Libera memória
+    if (item)
+        fat16_fat_item_free(item);
+    else
+        fat16_free_directory(directory);
+
+    pathparser_free(parsed_path);
+    return count;
 }
 
 void fat16_cat(const char* path) {

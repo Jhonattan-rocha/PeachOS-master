@@ -5,6 +5,7 @@ section .asm
 global print:function
 global echo:function
 global ls:function
+global lss:function
 global cat:function
 global mkdir:function
 global clear:function
@@ -56,6 +57,19 @@ ls:
     mov eax, 11 ; Command ls
     int 0x80
     add esp, 4
+    pop ebp
+    ret
+
+; int ls(const char* path, char output[][PEACHOS_MAX_PATH], int max_items)
+lss:
+    push ebp
+    mov ebp, esp
+    push dword[ebp+16] ; max_items
+    push dword[ebp+12] ; output buffer
+    push dword[ebp+8]  ; path
+    mov eax, 15        ; novo syscall id para ls_v2
+    int 0x80
+    add esp, 12
     pop ebp
     ret
 
